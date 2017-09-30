@@ -1,0 +1,78 @@
+image: Visual Studio 2015
+
+skip_tags: true
+branches:
+  only:
+    - master
+
+platform:
+  - x86
+  - amd64
+
+environment:
+  PREFIX:    C:\gnuwin
+
+  APPVEYOR_RDP_PASSWORD:
+    secure: iGUJ3bB1+4QiAFE49Z8mNg==
+  GITHUB_TOKEN:
+    secure: OIQoxV5vUTUamL2ObqyNZeXPpE0CnJrADVV/3OG8sc/GZEkF/Ajcno98IqT6jVh9
+
+  matrix:
+    - VSVER: 9
+    - VSVER: 9
+      LINK_TYPE: static
+    - VSVER: 10
+    - VSVER: 10
+      LINK_TYPE: static
+    - VSVER: 11
+    - VSVER: 11
+      LINK_TYPE: static
+    - VSVER: 12
+    - VSVER: 12
+      LINK_TYPE: static
+    - VSVER: 14
+    - VSVER: 14
+      LINK_TYPE: static
+
+install:
+  - curl -fsSL -o nasm-2.13.01-win32.zip http://www.nasm.us/pub/nasm/releasebuilds/2.13.01/win32/nasm-2.13.01-win32.zip
+  - 7z x nasm-2.13.01-win32.zip -y -o"C:\" 2>&1 > nul
+  - SET PATH=C:\nasm-2.13.01;%PATH%
+
+before_build:
+  - ps: >-
+      $env:VSCOMNTOOLS=(Get-Content ("env:VS" + "$env:VSVER" + "0COMNTOOLS"))
+
+      If ($env:Platform -Match "x86") {
+        $env:VCVARS_PLATFORM="32"
+      } Else {
+        $env:VCVARS_PLATFORM="64"
+      }
+  - SET  "PLATTYPE=%PLATFORM%"
+  - CALL vcvars%VCVARS_PLATFORM%all.bat
+
+build_script:
+  - start_build
+
+after_build:
+  - clean_github
+  - full_artifact
+
+artifacts:
+    - path: '*.7z'
+
+deploy:
+  - provider: GitHub
+    artifact: /.*\.7z/
+    release: vc$(VSVER).$(PLATTYPE)-$(LINK_TYPE)
+    draft: false
+    prerelease: false
+    force_update: false
+    auth_token: $(GITHUB_TOKEN)
+    on:
+      branch: master                # release from master branch only
+      appveyor_repo_tag: false      # deploy on tag push only
+
+#on_finish:
+  #- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+
